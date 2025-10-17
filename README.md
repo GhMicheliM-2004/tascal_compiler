@@ -1,3 +1,14 @@
+
+# Como testar?
+
+**Rode a partir da pasta raiz:**
+
+python -m "patch+Arquivo" "Nome da entrada"
+
+**Exemplo**
+
+python -m tascal_compiler.Tests.Lexer.test_lexer Tascal_Tester_Lexer_InValido.tas
+
 # Tascal Compiler
 
 🛠️ **Compilador para a linguagem Tascal (Tiny Pascal)**
