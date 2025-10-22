@@ -3,11 +3,11 @@
 
 **Rode a partir da pasta raiz:**
 
-python -m "patch+Arquivo" "Nome da entrada"
+py -m "patch+Arquivo" "Nome da entrada"
 
 **Exemplo**
 
-python -m tascal_compiler.Tests.Lexer.test_lexer Tascal_Tester_Lexer_InValido.tas
+py -m tascal_compiler.Tests.Parser.test_parser tascal_compiler/Tests/ProgramasTascalTeste/P1.tascal
 
 # Tascal Compiler
 
