@@ -1,9 +1,7 @@
 program teste;
 var x, y: integer;
 begin
-  read(x, y);
-  if x < y then
-    write(x)
-  else
-    write(y);
+  x := 5;
+  y := x + 2;
+  write(x);
 end.

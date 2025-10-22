@@ -1,5 +1,5 @@
 import sys, os
-from tascal_compiler.lexer import lexico
+from tascal_compiler.lex import lexico
 
 # Se não passar argumento, usa o arquivo padrão
 arquivo = sys.argv[1] 

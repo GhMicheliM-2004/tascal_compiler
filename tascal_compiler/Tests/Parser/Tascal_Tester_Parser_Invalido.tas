@@ -1,9 +1,6 @@
 program teste;
-var x, y: integer;
+var x: integer;
 begin
-  read(x, y)
-  if x < y then
-    write(x)
-  else
-    write(y);
+  y := 10;  
+  write(y);
 end.
