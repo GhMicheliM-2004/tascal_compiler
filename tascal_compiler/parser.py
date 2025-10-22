@@ -1,69 +1,46 @@
 import ply.yacc as yacc
 from tascal_compiler.lexer import tokens
 
-# --------------------------------------
-# Tabela de símbolos e erros semânticos
-# --------------------------------------
-
-tab_simbolos = {}
+# ==========================================
+#  Estruturas de dados semânticas
+# ==========================================
+tabela_variaveis = {}
 erros_semanticos = []
 
-
+# ==========================================
+#  Funções auxiliares
+# ==========================================
 def semantico_reset():
-    global tab_simbolos, erros_semanticos
-    tab_simbolos = {}
+    global tabela_variaveis, erros_semanticos
+    tabela_variaveis = {}
     erros_semanticos = []
 
-
-def erro_semantico(msg, lineno=None):
-    if lineno:
-        print(f"ERRO SEMÂNTICO na linha {lineno}: {msg}")
-    else:
-        print(f"ERRO SEMÂNTICO: {msg}")
-    erros_semanticos.append(msg)
-
+def erro_semantico(msg, linha):
+    print(f"ERRO SEMÂNTICO na linha {linha}: {msg}")
+    erros_semanticos.append(f"Linha {linha}: {msg}")
 
 def instala_programa(nome, linha):
-    if nome in tab_simbolos:
-        erro_semantico(f"identificador de programa '{nome}' já declarado", linha)
-    else:
-        tab_simbolos[nome] = {"categoria": "programa", "tipo": None, "linha": linha}
-
+    # (aqui você poderia adicionar nome do programa se quiser)
+    pass
 
 def instala_variavel(nome, tipo, linha):
-    if nome in tab_simbolos:
+    if nome in tabela_variaveis:
         erro_semantico(f"variável '{nome}' já declarada", linha)
     else:
-        tab_simbolos[nome] = {"categoria": "variavel", "tipo": tipo, "linha": linha}
-
+        tabela_variaveis[nome] = tipo
 
 def busca_variavel(nome, linha):
-    if nome not in tab_simbolos:
+    if nome not in tabela_variaveis:
         erro_semantico(f"variável '{nome}' não declarada", linha)
         return None
-    return tab_simbolos[nome]["tipo"]
+    return tabela_variaveis[nome]
 
-
-def verifica_atribuicao(nome, tipo_expr, linha):
-    if nome not in tab_simbolos:
-        erro_semantico(f"variável '{nome}' não declarada", linha)
-        return
-    tipo_var = tab_simbolos[nome]["tipo"]
-    if tipo_var != tipo_expr:
-        erro_semantico(f"atribuição incompatível: variável '{nome}' é {tipo_var}, expressão é {tipo_expr}", linha)
-
-
-def verifica_condicao(tipo, linha, contexto):
-    if tipo != "boolean":
-        erro_semantico(f"condição do {contexto} deve ser booleana (obtido {tipo})", linha)
-
-# --------------------------------------
-# Gramática Tascal (estilo parser_erros.py)
-# --------------------------------------
+# ==========================================
+#  Regras sintáticas
+# ==========================================
 
 def p_programa(p):
     """programa : PROGRAM ID PV bloco PF"""
-    semantico_reset()
     instala_programa(p[2], p.lineno(2))
     print("Programa reconhecido com sucesso!")
 
@@ -77,28 +54,21 @@ def p_programa(p):
 
 
 def p_bloco(p):
-    """bloco : secao_decl_var comando_composto
-             | comando_composto"""
+    """bloco : declaracoes comando_composto"""
     p[0] = None
 
 
-def p_secao_decl_var(p):
-    """secao_decl_var : VAR declaracao_var PV lista_decl_var
-                      | VAR declaracao_var PV"""
+def p_declaracoes(p):
+    """declaracoes : VAR declaracao_variaveis
+                   | empty"""
     p[0] = None
 
 
-def p_lista_decl_var(p):
-    """lista_decl_var : declaracao_var PV lista_decl_var
-                      | declaracao_var PV"""
-    p[0] = None
-
-
-def p_declaracao_var(p):
-    """declaracao_var : lista_id DP tipo"""
-    tipo = p[3].lower()
-    for nome, linha in p[1]:
-        instala_variavel(nome, tipo, linha)
+def p_declaracao_variaveis(p):
+    """declaracao_variaveis : lista_id DP tipo PV declaracao_variaveis
+                            | lista_id DP tipo PV"""
+    for nome in p[1]:
+        instala_variavel(nome, p[3], p.lineno(1))
     p[0] = None
 
 
@@ -106,15 +76,15 @@ def p_lista_id(p):
     """lista_id : ID
                 | ID VIRG lista_id"""
     if len(p) == 2:
-        p[0] = [(p[1], p.lineno(1))]
+        p[0] = [p[1]]
     else:
-        p[0] = [(p[1], p.lineno(1))] + p[3]
+        p[0] = [p[1]] + p[3]
 
 
 def p_tipo(p):
     """tipo : INTEGER
             | BOOLEAN"""
-    p[0] = p[1]
+    p[0] = p[1].lower()
 
 
 def p_comando_composto(p):
@@ -131,61 +101,68 @@ def p_lista_comandos(p):
 
 def p_comando(p):
     """comando : atribuicao
-               | condicional
-               | repeticao
-               | leitura
-               | escrita
-               | comando_composto"""
+               | comando_condicional
+               | comando_enquanto
+               | comando_leitura
+               | comando_escrita
+               | comando_composto
+               | empty"""
     p[0] = None
 
 
 def p_atribuicao(p):
     """atribuicao : ID DPIGUAL expressao"""
-    nome = p[1]
+    tipo_var = busca_variavel(p[1], p.lineno(1))
     tipo_expr = p[3]
-    verifica_atribuicao(nome, tipo_expr, p.lineno(2))
+
+    if tipo_var and tipo_expr and tipo_var != tipo_expr:
+        erro_semantico(f"atribuição incompatível: variável '{p[1]}' é {tipo_var}, expressão é {tipo_expr}", p.lineno(1))
     p[0] = None
 
 
-def p_condicional(p):
-    """condicional : IF expressao THEN comando
-                   | IF expressao THEN comando ELSE comando"""
-    tipo_cond = p[2]
-    verifica_condicao(tipo_cond, p.lineno(1), "if")
+def p_comando_condicional(p):
+    """comando_condicional : IF expressao THEN comando
+                           | IF expressao THEN comando ELSE comando"""
+    if p[2] != "boolean":
+        erro_semantico("condição do IF deve ser booleana", p.lineno(1))
     p[0] = None
 
 
-def p_repeticao(p):
-    """repeticao : WHILE expressao DO comando"""
-    tipo_cond = p[2]
-    verifica_condicao(tipo_cond, p.lineno(1), "while")
+def p_comando_enquanto(p):
+    """comando_enquanto : WHILE expressao DO comando"""
+    if p[2] != "boolean":
+        erro_semantico("condição do WHILE deve ser booleana", p.lineno(1))
     p[0] = None
 
 
-def p_leitura(p):
-    """leitura : READ EPAR lista_id DPAR"""
-    for nome, linha in p[3]:
-        if nome not in tab_simbolos:
-            erro_semantico(f"variável '{nome}' não declarada em read()", linha)
+def p_comando_leitura(p):
+    """comando_leitura : READ EPAR lista_id DPAR"""
+    for nome in p[3]:
+        if busca_variavel(nome, p.lineno(1)) is None:
+            erro_semantico(f"variável '{nome}' não declarada", p.lineno(1))
     p[0] = None
 
 
-def p_escrita(p):
-    """escrita : WRITE EPAR lista_exp DPAR"""
-    for tipo, linha in p[3]:
+def p_comando_escrita(p):
+    """comando_escrita : WRITE EPAR lista_expressoes DPAR"""
+    for tipo in p[3]:
         if tipo not in ("integer", "boolean"):
-            erro_semantico(f"write() recebeu tipo inválido '{tipo}'", linha)
+            erro_semantico(f"write() recebeu tipo inválido '{tipo}'", p.lineno(1))
     p[0] = None
 
 
-def p_lista_exp(p):
-    """lista_exp : expressao
-                 | expressao VIRG lista_exp"""
+def p_lista_expressoes(p):
+    """lista_expressoes : expressao
+                        | expressao VIRG lista_expressoes"""
     if len(p) == 2:
-        p[0] = [(p[1], p.lineno(1))]
+        p[0] = [p[1]]
     else:
-        p[0] = [(p[1], p.lineno(1))] + p[3]
+        p[0] = [p[1]] + p[3]
 
+
+# ==========================================
+#  Expressões e operações
+# ==========================================
 
 def p_expressao(p):
     """expressao : expressao_simples
@@ -193,18 +170,24 @@ def p_expressao(p):
     if len(p) == 2:
         p[0] = p[1]
     else:
-        p[0] = "boolean"
-    p[0] = p[0] or None
+        op = p.slice[2].type
+        t1 = p[1]
+        t2 = p[3]
 
-
-def p_relacao(p):
-    """relacao : IGUAL
-               | DIFERENTE
-               | MENORQUE
-               | MENORIGUAL
-               | MAIORQUE
-               | MAIORIGUAL"""
-    p[0] = None
+        if op in ("MENORQUE", "MENORIGUAL", "MAIORQUE", "MAIORIGUAL"):
+            if t1 != "integer" or t2 != "integer":
+                erro_semantico(f"operador '{p[2]}' requer operandos inteiros (obtido {t1} e {t2})", p.lineno(2))
+                p[0] = None
+            else:
+                p[0] = "boolean"
+        elif op in ("IGUAL", "DIFERENTE"):  # MQMQ = <>
+            if t1 != t2:
+                erro_semantico(f"operador '{p[2]}' requer operandos do mesmo tipo (obtido {t1} e {t2})", p.lineno(2))
+                p[0] = None
+            else:
+                p[0] = "boolean"
+        else:
+            p[0] = None
 
 
 def p_expressao_simples(p):
@@ -212,8 +195,27 @@ def p_expressao_simples(p):
                          | expressao_simples MAIS termo
                          | expressao_simples MENOS termo
                          | expressao_simples OR termo"""
-    p[0] = "integer" if len(p) > 2 and p[2] in ("MAIS", "MENOS") else "boolean" if len(p) > 2 else p[1]
-    p[0] = p[0] or None
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        op = p.slice[2].type
+        left = p[1]
+        right = p[3]
+
+        if op in ("MAIS", "MENOS"):
+            if left != "integer" or right != "integer":
+                erro_semantico(f"operador '{p[2]}' requer operandos inteiros (obtido {left} e {right})", p.lineno(2))
+                p[0] = None
+            else:
+                p[0] = "integer"
+        elif op == "OR":
+            if left != "boolean" or right != "boolean":
+                erro_semantico(f"operador 'or' requer operandos booleanos (obtido {left} e {right})", p.lineno(2))
+                p[0] = None
+            else:
+                p[0] = "boolean"
+        else:
+            p[0] = None
 
 
 def p_termo(p):
@@ -221,8 +223,27 @@ def p_termo(p):
              | termo VEZES fator
              | termo DIV fator
              | termo AND fator"""
-    p[0] = "integer" if len(p) > 2 and p[2] in ("VEZES", "DIV") else "boolean" if len(p) > 2 else p[1]
-    p[0] = p[0] or None
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        op = p.slice[2].type
+        left = p[1]
+        right = p[3]
+
+        if op in ("VEZES", "DIV"):
+            if left != "integer" or right != "integer":
+                erro_semantico(f"operador '{p[2]}' requer operandos inteiros (obtido {left} e {right})", p.lineno(2))
+                p[0] = None
+            else:
+                p[0] = "integer"
+        elif op == "AND":
+            if left != "boolean" or right != "boolean":
+                erro_semantico(f"operador 'and' requer operandos booleanos (obtido {left} e {right})", p.lineno(2))
+                p[0] = None
+            else:
+                p[0] = "boolean"
+        else:
+            p[0] = None
 
 
 def p_fator(p):
@@ -233,50 +254,62 @@ def p_fator(p):
              | EPAR expressao DPAR
              | NOT fator
              | MENOS fator"""
-    p[0] = None
+    if len(p) == 2:
+        tok = p[1]
+        if isinstance(tok, int):
+            p[0] = "integer"
+        elif p.slice[1].type in ("TRUE", "FALSE"):
+            p[0] = "boolean"
+        elif p.slice[1].type == "ID":
+            p[0] = busca_variavel(tok, p.lineno(1))
+        else:
+            p[0] = None
+
+    elif len(p) == 4 and p.slice[1].type == "EPAR":
+        p[0] = p[2]
+
+    elif p.slice[1].type == "NOT":
+        tipo_f = p[2]
+        if tipo_f != "boolean":
+            erro_semantico(f"operador 'not' requer expressão booleana (obtido {tipo_f})", p.lineno(1))
+            p[0] = None
+        else:
+            p[0] = "boolean"
+
+    elif p.slice[1].type == "MENOS":
+        tipo_f = p[2]
+        if tipo_f != "integer":
+            erro_semantico(f"operador unário '-' requer expressão inteira (obtido {tipo_f})", p.lineno(1))
+            p[0] = None
+        else:
+            p[0] = "integer"
+    else:
+        p[0] = None
 
 
-# --------------------------------------
-# Tratamento de erros (estilo parser_erros.py)
-# --------------------------------------
-
-def p_secao_decl_var_error(p):
-    """secao_decl_var : VAR error"""
-    print(f"ERRO SINTÁTICO na linha {p.lineno(2)}: declaração de variáveis inválida")
-    parser.errok()
-    p[0] = None
-
-
-def p_lista_comandos_error(p):
-    """lista_comandos : lista_comandos error PV"""
-    print(f"ERRO SINTÁTICO na linha {p.lineno(2)}: comando inválido (descartando até ';')")
-    parser.errok()
-    p[0] = None
+def p_relacao(p):
+    """relacao : IGUAL
+               | DIFERENTE
+               | MENORQUE
+               | MENORIGUAL
+               | MAIORQUE
+               | MAIORIGUAL"""
+    p[0] = p[1]
 
 
-def p_atribuicao_error(p):
-    """atribuicao : ID DPIGUAL error"""
-    print(f"ERRO SINTÁTICO na linha {p.lineno(3)}: expressão inválida à direita de ':='")
-    parser.errok()
-    p[0] = None
-
-
-def p_fator_paren_error(p):
-    """fator : EPAR error DPAR"""
-    print(f"ERRO SINTÁTICO na linha {p.lineno(2)}: expressão entre parênteses inválida")
-    parser.errok()
-    p[0] = None
+def p_empty(p):
+    """empty :"""
+    pass
 
 
 def p_error(p):
-    if p is None:
-        print("ERRO SINTÁTICO: fim de arquivo inesperado (EOF)")
+    if p:
+        print(f"Erro sintático: token inesperado '{p.value}' na linha {p.lineno}")
     else:
-        print(f"ERRO SINTÁTICO na linha {p.lineno}: token inesperado ({p.value!r})")
-    p[0] = None
+        print("Erro sintático: fim de arquivo inesperado.")
 
 
-# --------------------------------------
-# Construção do parser
-# --------------------------------------
+# ==========================================
+#  Construção do parser
+# ==========================================
 parser = yacc.yacc()

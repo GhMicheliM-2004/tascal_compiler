@@ -1,34 +1,7 @@
-# import sys
-# import os
-# from parser import parser, erros_semanticos
-# from lexer import lexico
-
-# # ============================================
-# # Teste integrado: análise sintática + semântica
-# # ============================================
-
-# # Caminho completo do arquivo de teste
-# arquivo = sys.argv[1]
-# arquivo = os.path.join(os.path.dirname(__file__), arquivo)
-
-# with open(arquivo, "r") as f:
-#         data = f.read()
-
-# print("\n========================================")
-# print("   ANÁLISE SINTÁTICA + SEMÂNTICA TASCAL ")
-# print("========================================\n")
-
-# # Executa o parser (que já faz a parte semântica internamente)
-# parser.parse(data, lexer=lexico)
-
-# print("\n========================================")
-# print("         ANÁLISE FINALIZADA")
-# print("========================================\n")
-
 import sys
 import os
-from tascal_compiler.parser import parser, erros_semanticos
-from tascal_compiler.lexer import lexer
+from tascal_compiler.parser import parser, erros_semanticos, semantico_reset
+from tascal_compiler.lexer import lexico
 
 # ===============================================
 #    TESTE DO ANALISADOR SINTÁTICO E SEMÂNTICO
@@ -52,9 +25,13 @@ def executar_teste(caminho_arquivo):
     print(f"Arquivo: {os.path.basename(caminho_arquivo)}\n")
 
     try:
-        # Reinicia o lexer e o parser
-        lexer.lineno = 1
-        parser.parse(codigo, lexer=lexer)
+        # 🔹 Reinicia estado semântico e léxico
+        semantico_reset()
+        lexico.lineno = 1
+
+        # 🔹 Executa análise
+        parser.parse(codigo, lexer=lexico)
+
     except Exception as e:
         print(f"\nERRO durante a análise: {e}")
 
