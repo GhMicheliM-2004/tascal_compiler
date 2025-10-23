@@ -8,13 +8,6 @@ from tascal_compiler.lexer import lexico
 # ===============================================
 
 def executar_teste(caminho_arquivo):
-    """
-    Executa a análise sintática + semântica de um arquivo .tas
-    mostrando o resultado formatado.
-    """
-    if not os.path.exists(caminho_arquivo):
-        print(f"Arquivo '{caminho_arquivo}' não encontrado.")
-        return
 
     with open(caminho_arquivo, "r", encoding="utf-8") as f:
         codigo = f.read()

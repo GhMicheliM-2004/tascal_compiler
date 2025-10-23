@@ -165,58 +165,47 @@ def p_lista_expressoes(p):
 # ==========================================
 
 def p_expressao(p):
-    """expressao : expressao_simples
-                 | expressao_simples relacao expressao_simples"""
+    """expressao : expressao OR expressao_simples
+                 | expressao_simples relacao expressao_simples
+                 | expressao_simples"""
     if len(p) == 2:
+        # Apenas expressao_simples
         p[0] = p[1]
+    elif len(p) == 4 and p[2] == "or":
+        left = p[1]
+        right = p[3]
+        if left != "boolean" or right != "boolean":
+            erro_semantico(f"operador 'or' requer operandos booleanos (obtido {left} e {right})", p.lineno(2))
+        p[0] = "boolean"
     else:
-        op = p.slice[2].type
-        t1 = p[1]
-        t2 = p[3]
-
-        if op in ("MENORQUE", "MENORIGUAL", "MAIORQUE", "MAIORIGUAL"):
-            if t1 != "integer" or t2 != "integer":
-                erro_semantico(f"operador '{p[2]}' requer operandos inteiros (obtido {t1} e {t2})", p.lineno(2))
-                p[0] = None
-            else:
-                p[0] = "boolean"
-        elif op in ("IGUAL", "DIFERENTE"):  # MQMQ = <>
-            if t1 != t2:
-                erro_semantico(f"operador '{p[2]}' requer operandos do mesmo tipo (obtido {t1} e {t2})", p.lineno(2))
-                p[0] = None
-            else:
-                p[0] = "boolean"
-        else:
-            p[0] = None
-
+        # Comparações (<, <=, =, <>, >, >=)
+        left = p[1]
+        right = p[3]
+        op = p[2]
+        if op in ('<', '<=', '>', '>='):
+            if left != "integer" or right != "integer":
+                erro_semantico(f"operador '{op}' requer operandos inteiros (obtido {left} e {right})", p.lineno(2))
+            p[0] = "boolean"
+        elif op in ('=', '<>'):
+            if left != right:
+                erro_semantico(f"operador '{op}' requer operandos do mesmo tipo (obtido {left} e {right})", p.lineno(2))
+            p[0] = "boolean"
 
 def p_expressao_simples(p):
     """expressao_simples : termo
                          | expressao_simples MAIS termo
-                         | expressao_simples MENOS termo
-                         | expressao_simples OR termo"""
+                         | expressao_simples MENOS termo"""
     if len(p) == 2:
         p[0] = p[1]
     else:
-        op = p.slice[2].type
         left = p[1]
         right = p[3]
-
-        if op in ("MAIS", "MENOS"):
-            if left != "integer" or right != "integer":
-                erro_semantico(f"operador '{p[2]}' requer operandos inteiros (obtido {left} e {right})", p.lineno(2))
-                p[0] = None
-            else:
-                p[0] = "integer"
-        elif op == "OR":
-            if left != "boolean" or right != "boolean":
-                erro_semantico(f"operador 'or' requer operandos booleanos (obtido {left} e {right})", p.lineno(2))
-                p[0] = None
-            else:
-                p[0] = "boolean"
-        else:
+        op = p[2]
+        if left != "integer" or right != "integer":
+            erro_semantico(f"operador '{op}' requer operandos inteiros (obtido {left} e {right})", p.lineno(2))
             p[0] = None
-
+        else:
+            p[0] = "integer"
 
 def p_termo(p):
     """termo : fator
@@ -255,36 +244,27 @@ def p_fator(p):
              | NOT fator
              | MENOS fator"""
     if len(p) == 2:
-        tok = p[1]
-        if isinstance(tok, int):
+        if p.slice[1].type == "NUMERO":
             p[0] = "integer"
         elif p.slice[1].type in ("TRUE", "FALSE"):
             p[0] = "boolean"
         elif p.slice[1].type == "ID":
-            p[0] = busca_variavel(tok, p.lineno(1))
-        else:
-            p[0] = None
-
-    elif len(p) == 4 and p.slice[1].type == "EPAR":
-        p[0] = p[2]
-
-    elif p.slice[1].type == "NOT":
-        tipo_f = p[2]
-        if tipo_f != "boolean":
-            erro_semantico(f"operador 'not' requer expressão booleana (obtido {tipo_f})", p.lineno(1))
-            p[0] = None
-        else:
-            p[0] = "boolean"
-
-    elif p.slice[1].type == "MENOS":
-        tipo_f = p[2]
-        if tipo_f != "integer":
-            erro_semantico(f"operador unário '-' requer expressão inteira (obtido {tipo_f})", p.lineno(1))
-            p[0] = None
+            tipo = busca_variavel(p[1], p.lineno(1))
+            if tipo is None:
+                tipo = "integer"  # fallback seguro
+            p[0] = tipo
         else:
             p[0] = "integer"
-    else:
-        p[0] = None
+    elif len(p) == 4 and p.slice[1].type == "EPAR":
+        p[0] = p[2]
+    elif p.slice[1].type == "NOT":
+        if p[2] != "boolean":
+            erro_semantico(f"operador 'not' requer expressão booleana (obtido {p[2]})", p.lineno(1))
+        p[0] = "boolean"
+    elif p.slice[1].type == "MENOS":
+        if p[2] != "integer":
+            erro_semantico(f"operador unário '-' requer expressão inteira (obtido {p[2]})", p.lineno(1))
+        p[0] = "integer"
 
 
 def p_relacao(p):
@@ -304,9 +284,9 @@ def p_empty(p):
 
 def p_error(p):
     if p:
-        print(f"Erro sintático: token inesperado '{p.value}' na linha {p.lineno}")
+        print(f"ERRO SINTÁTICO: token inesperado '{p.value}' na linha {p.lineno}")
     else:
-        print("Erro sintático: fim de arquivo inesperado.")
+        print("ERRO SINTÁTICO: fim de arquivo inesperado.")
 
 
 # ==========================================
