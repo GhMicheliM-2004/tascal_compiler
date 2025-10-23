@@ -20,7 +20,6 @@ def erro_semantico(msg, linha):
     erros_semanticos.append(f"Linha {linha}: {msg}")
 
 def instala_programa(nome, linha):
-    # (aqui você poderia adicionar nome do programa se quiser)
     pass
 
 def instala_variavel(nome, tipo, linha):
@@ -36,21 +35,35 @@ def busca_variavel(nome, linha):
     return tabela_variaveis[nome]
 
 # ==========================================
+#  Precedência (importante para evitar SR/RR)
+# ==========================================
+precedence = (
+    ('left', 'OR'),
+    ('left', 'AND'),
+    ('nonassoc', 'IGUAL', 'DIFERENTE', 'MENORQUE', 'MENORIGUAL', 'MAIORQUE', 'MAIORIGUAL'),
+    ('left', 'MAIS', 'MENOS'),
+    ('left', 'VEZES', 'DIV'),
+    ('right', 'NOT', 'UMINUS'),
+)
+
+# ==========================================
 #  Regras sintáticas
 # ==========================================
 
 def p_programa(p):
     """programa : PROGRAM ID PV bloco PF"""
     instala_programa(p[2], p.lineno(2))
-    print("Programa reconhecido com sucesso!")
+
+    if erros_semanticos:
+        print("\nAnálise sintática concluída, mas com erros semânticos.")
+    else:
+        print("Programa reconhecido com sucesso (sintático e semântico)!")
 
     if erros_semanticos:
         print("\n--- ERROS SEMÂNTICOS ---")
         for e in erros_semanticos:
             print(" -", e)
-    else:
-        print("\nNenhum erro semântico encontrado.")
-    p[0] = None
+
 
 
 def p_bloco(p):
@@ -161,26 +174,38 @@ def p_lista_expressoes(p):
 
 
 # ==========================================
-#  Expressões e operações
+#  Expressões (hierarquia clara)
 # ==========================================
 
-def p_expressao(p):
-    """expressao : expressao OR expressao_simples
-                 | expressao_simples relacao expressao_simples
-                 | expressao_simples"""
+def p_expressao_or(p):
+    """expressao : expressao OR expressao_and
+                 | expressao_and"""
     if len(p) == 2:
-        # Apenas expressao_simples
         p[0] = p[1]
-    elif len(p) == 4 and p[2] == "or":
-        left = p[1]
-        right = p[3]
+    else:
+        left, right = p[1], p[3]
         if left != "boolean" or right != "boolean":
             erro_semantico(f"operador 'or' requer operandos booleanos (obtido {left} e {right})", p.lineno(2))
         p[0] = "boolean"
+
+def p_expressao_and(p):
+    """expressao_and : expressao_and AND expressao_rel
+                      | expressao_rel"""
+    if len(p) == 2:
+        p[0] = p[1]
     else:
-        # Comparações (<, <=, =, <>, >, >=)
-        left = p[1]
-        right = p[3]
+        left, right = p[1], p[3]
+        if left != "boolean" or right != "boolean":
+            erro_semantico(f"operador 'and' requer operandos booleanos (obtido {left} e {right})", p.lineno(2))
+        p[0] = "boolean"
+
+def p_expressao_rel(p):
+    """expressao_rel : soma relacao soma
+                     | soma"""
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        left, right = p[1], p[3]
         op = p[2]
         if op in ('<', '<=', '>', '>='):
             if left != "integer" or right != "integer":
@@ -191,49 +216,31 @@ def p_expressao(p):
                 erro_semantico(f"operador '{op}' requer operandos do mesmo tipo (obtido {left} e {right})", p.lineno(2))
             p[0] = "boolean"
 
-def p_expressao_simples(p):
-    """expressao_simples : termo
-                         | expressao_simples MAIS termo
-                         | expressao_simples MENOS termo"""
+def p_soma(p):
+    """soma : soma MAIS termo
+            | soma MENOS termo
+            | termo"""
     if len(p) == 2:
         p[0] = p[1]
     else:
-        left = p[1]
-        right = p[3]
-        op = p[2]
+        left, right = p[1], p[3]
         if left != "integer" or right != "integer":
-            erro_semantico(f"operador '{op}' requer operandos inteiros (obtido {left} e {right})", p.lineno(2))
+            erro_semantico(f"operador '{p[2]}' requer operandos inteiros (obtido {left} e {right})", p.lineno(2))
             p[0] = None
         else:
             p[0] = "integer"
 
 def p_termo(p):
-    """termo : fator
-             | termo VEZES fator
+    """termo : termo VEZES fator
              | termo DIV fator
-             | termo AND fator"""
+             | fator"""
     if len(p) == 2:
         p[0] = p[1]
     else:
-        op = p.slice[2].type
-        left = p[1]
-        right = p[3]
-
-        if op in ("VEZES", "DIV"):
-            if left != "integer" or right != "integer":
-                erro_semantico(f"operador '{p[2]}' requer operandos inteiros (obtido {left} e {right})", p.lineno(2))
-                p[0] = None
-            else:
-                p[0] = "integer"
-        elif op == "AND":
-            if left != "boolean" or right != "boolean":
-                erro_semantico(f"operador 'and' requer operandos booleanos (obtido {left} e {right})", p.lineno(2))
-                p[0] = None
-            else:
-                p[0] = "boolean"
-        else:
-            p[0] = None
-
+        left, right = p[1], p[3]
+        if left != "integer" or right != "integer":
+            erro_semantico(f"operador '{p[2]}' requer operandos inteiros (obtido {left} e {right})", p.lineno(2))
+        p[0] = "integer"
 
 def p_fator(p):
     """fator : ID
@@ -242,7 +249,7 @@ def p_fator(p):
              | FALSE
              | EPAR expressao DPAR
              | NOT fator
-             | MENOS fator"""
+             | MENOS fator %prec UMINUS"""
     if len(p) == 2:
         if p.slice[1].type == "NUMERO":
             p[0] = "integer"
@@ -251,7 +258,7 @@ def p_fator(p):
         elif p.slice[1].type == "ID":
             tipo = busca_variavel(p[1], p.lineno(1))
             if tipo is None:
-                tipo = "integer"  # fallback seguro
+                tipo = "integer"
             p[0] = tipo
         else:
             p[0] = "integer"
@@ -266,7 +273,6 @@ def p_fator(p):
             erro_semantico(f"operador unário '-' requer expressão inteira (obtido {p[2]})", p.lineno(1))
         p[0] = "integer"
 
-
 def p_relacao(p):
     """relacao : IGUAL
                | DIFERENTE
@@ -274,20 +280,18 @@ def p_relacao(p):
                | MENORIGUAL
                | MAIORQUE
                | MAIORIGUAL"""
+    # devolve o lexema do operador (por exemplo '<' ou '<=')
     p[0] = p[1]
-
 
 def p_empty(p):
     """empty :"""
     pass
-
 
 def p_error(p):
     if p:
         print(f"ERRO SINTÁTICO: token inesperado '{p.value}' na linha {p.lineno}")
     else:
         print("ERRO SINTÁTICO: fim de arquivo inesperado.")
-
 
 # ==========================================
 #  Construção do parser

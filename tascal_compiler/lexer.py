@@ -71,6 +71,6 @@ def t_COMMENT(t):
 
 def t_error(t):
     print(f"ERRO LÉXICO: Símbolo ilegal '{t.value[0]}' na linha {t.lineno}")
-    t.lexer.skip(1)
+    raise SyntaxError("Erro léxico encontrado")
 
 lexico = lex.lex()
