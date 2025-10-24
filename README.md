@@ -106,7 +106,8 @@ tascal_compiler/
 ├── parser.out                                           # Arquivo gerado automáticamente pelo ply
 ├── parser.py                                            # Analisador sintático e semântico (parser)
 ├── parsertab.py                                         # Arquivo gerado automáticamente pelo ply
-├── yacc.py                                              # Funções auxiliares do ply.yacc                      .gitignore                                               # Arquivos ignorados
+├── yacc.py                                              # Funções auxiliares do ply.yacc
+.gitignore                                               # Arquivos ignorados
 Especificação INF.pdf                                    # Especificação do projeto
 README.md                                                # Este arquivo
 ```
