@@ -1,13 +1,22 @@
 
 # Como testar?
 
-**Rode a partir da pasta raiz:**
+**Rode a partir da pasta raiz (tascal_compiler):**
 
 py -m "patch+Arquivo" "Nome da entrada"
 
 **Exemplo**
 
-py -m tascal_compiler.Tests.Parser.test_parser tascal_compiler/Tests/ProgramasTascalTeste/P1.tascal
+```bash
+py -m tascal_compiler.Tests.Parser.test_parser ProgramasTascalTeste/P1.tascal
+```
+
+**Ou**
+
+```bash
+py -m tascal_compiler.Tests.Lexer.test_lexer ProgramasTascalTeste/P1.tascal
+```
+
 
 # Tascal Compiler
 
@@ -80,14 +89,26 @@ true false
 
 ```
 tascal_compiler/
-├── lexico.py            # Analisador léxico (scanner)
-├── sintatico.py         # Analisador sintático (parser)
-├── semantico.py         # Verificações semânticas e interpretação
-├── main.py              # Script principal para executar o compilador
-├── teste_lexico.py      # Testes do lexer
-├── teste_sintatico.py   # Testes do parser
-├── README.md            # Este arquivo
-└── .gitignore           # Arquivos ignorados
+├── Tests                                                # Pasta contendo os arquivos test_ e instâncias
+    ├── Lexer                                            # Pasta contendo os arquivos do Lexer
+        ├── ProgramasTascalTeste                         # Instâncias
+        ├── Tascal_Tester_Lexer_Invalido.tas             # Teste Inválido
+        ├── Tascal_Tester_Lexer_Valido.tas               # Teste Válido
+        ├── test_lexer.py                                # Testador de análise léxica
+    ├── Parser                                           # Pasta contendo os arquivos do Parser
+        ├── ProgramasTascalTeste                         # Instâncias
+        ├── Tascal_Tester_Parser_Invalido.tas            # Teste Inválido
+        ├── Tascal_Tester_Parser_Valido.tas              # Teste Válido
+        ├── test_Parser.py                               # Testador de análise sintática e semântica
+├── __init__.py                                          # Inicialização da pasta como pacote python
+├── lex.py                                               # Arquivo gerado automáticamente pelo ply
+├── lexer.py                                             # Analisador léxico (lexer)
+├── parser.out                                           # Arquivo gerado automáticamente pelo ply
+├── parser.py                                            # Analisador sintático e semântico (parser)
+├── parsertab.py                                         # Arquivo gerado automáticamente pelo ply
+├── yacc.py                                              # Funções auxiliares do ply.yacc                      .gitignore                                               # Arquivos ignorados
+Especificação INF.pdf                                    # Especificação do projeto
+README.md                                                # Este arquivo
 ```
 
 ---
@@ -101,25 +122,19 @@ git clone https://github.com/GhMicheliM-2004/tascal_compiler.git
 cd tascal_compiler
 ```
 
-2. Execute o compilador passando o arquivo Tascal como argumento:
+2. Execute o compilador com um analisador por vez (lexer e parser), passando o arquivo Tascal como argumento:
 
 ```bash
-python main.py exemplos/soma.tas
+py -m tascal_compiler.Tests.Lexer.test_lexer ProgramasTascalTeste/P1.tascal
+# Retorna os tokens do arquivo, ou erros léxicos
+```
+```bash
+py -m tascal_compiler.Tests.Parser.test_parser ProgramasTascalTeste/P1.tascal
+# Realiza a análise sintática e semântica, imprimindo os erros caso algum seja obtido
 ```
 
 3. Mensagens de erro serão exibidas com **linha e tipo de erro** (léxico, sintático ou semântico).
 4. Programas válidos serão executados e exibirão os resultados na saída padrão.
-
----
-
-## 🧪 Rodando os Testes
-
-```bash
-python -m unittest teste_lexico.py
-python -m unittest teste_sintatico.py
-```
-
-Isso verifica se o lexer e parser estão funcionando corretamente.
 
 ---
 
@@ -128,3 +143,6 @@ Isso verifica se o lexer e parser estão funcionando corretamente.
 * APPEL, A. W.; GINSBURG, M. *Modern Compiler Implementation in C.* Cambridge University Press, 1998.
 * KOWALTOWSKI, T. *Implementação de Linguagens de Programação.* Guanabara Dois, 1983.
 * [PLY (Python Lex-Yacc) Documentation](https://ply.readthedocs.io/en/latest/index.html)
+* DUDUSCRIPT. *pl0-ply: pl0 compiler written in python*. https://github.com/duduscript/pl0-ply]
+* STRIDERDU. *Plycc: A compiler for C language using PLY [https://github.com/striderdu/Plycc]
+* SMOHAMMADFY. *Compiler_PLY: Lexer and parser for compiler base like C/C++ with PLY python*[https://github.com/smohammadfy/Compiler_PLY]
