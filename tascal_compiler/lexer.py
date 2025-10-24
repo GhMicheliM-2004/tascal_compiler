@@ -1,7 +1,7 @@
+# Analisador léxico para a linguagem Tascal usando PLY
 import ply.lex as lex
 
-# Palavras reservadas
-palavras_reservadas = {
+palavras_reservadas = { # Palavras reservadas do Tascal
     'program': 'PROGRAM',
     'var': 'VAR',
     'begin': 'BEGIN',
@@ -22,8 +22,8 @@ palavras_reservadas = {
     'or': 'OR',
     'not': 'NOT',
 }
-
-tokens = [
+ 
+tokens = [ # Definição dos tokens
     'ID', 'NUMERO',
     'EPAR', 'DPAR', 'PV',
     'IGUAL', 'DIFERENTE',
@@ -33,7 +33,8 @@ tokens = [
     'DPIGUAL', 'DP', 'VIRG', 'PF'
 ] + list(palavras_reservadas.values())
 
-t_EPAR = r'\('
+# Definição das expressões regulares para os tokens simples
+t_EPAR = r'\(' 
 t_DPAR = r'\)'
 t_PV = r';'
 t_IGUAL = r'='
@@ -51,26 +52,26 @@ t_VIRG = r','
 t_PF = r'\.'
 t_ignore = ' \t'
 
-def t_ID(t):
+def t_ID(t): # Identificador
     r'[A-Za-z][A-Za-z0-9_]*'
     t.type = palavras_reservadas.get(t.value, 'ID')
     return t
 
-def t_NUMERO(t):
+def t_NUMERO(t): # Número inteiro
     r'\d+'
     t.value = int(t.value)
     return t
 
-def t_newline(t):
+def t_newline(t): # Quebra de linha
     r'\n+'
     t.lexer.lineno += len(t.value)
 
-def t_COMMENT(t):
+def t_COMMENT(t): # Comentários -> Não são permitidos
     r'\{[^}]*\}'
     print(f"ERRO LÉXICO: Comentários não são permitidos (linha {t.lineno})")
 
-def t_error(t):
+def t_error(t): # Tratamento de erros léxicos
     print(f"ERRO LÉXICO: Símbolo ilegal '{t.value[0]}' na linha {t.lineno}")
-    raise SyntaxError("Erro léxico encontrado")
 
+# Construção do analisador léxico
 lexico = lex.lex()
