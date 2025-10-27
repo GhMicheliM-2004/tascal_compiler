@@ -3,7 +3,7 @@
 
 **Rode a partir da pasta raiz (tascal_compiler):**
 
-py -m "patch+Arquivo" "Nome da entrada"
+py -m "patch+arquivoTeste" "patch+nomeEntrada"
 
 **Exemplo**
 
